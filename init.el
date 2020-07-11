@@ -46,12 +46,6 @@
  ;; If there is more than one, they won't work right.
  )
 
-;;babel
-(org-babel-do-load-languages
- 'org-babel-load-languages
- '((sh . t) 
-  ))
-
 ;;theme
 (add-to-list 'custom-theme-load-path "~/.emacs.d/themes/")
 (load-theme 'zenburn t)
