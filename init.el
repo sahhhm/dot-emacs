@@ -1,60 +1,122 @@
-;;ledger
-;;(load "ledger")
+(require 'package)
+(add-to-list 'package-archives
+             '("melpa" . "https://melpa.org/packages/") t)
+
 
 ;; for pdflatex
-(setq exec-path (append exec-path '("/usr/bin")) )
+;;(setq exec-path (append exec-path '("/usr/bin")) )
 
-;; Set path to dependencies
-(setq site-lisp-dir
-      (expand-file-name "site-lisp" user-emacs-directory))
+;;; Functions
+(eval-and-compile
+  (defun emacs-path (path)
+    (expand-file-name path user-emacs-directory)))
 
-;; Settings for currently logged in user
-(setq user-settings-dir
-      (concat user-emacs-directory "users/" user-login-name))
-(add-to-list 'load-path user-settings-dir)
+;;; Environment
+(eval-and-compile
+  (defconst emacs-environment (getenv "NIX_MYENV_NAME"))
 
-;; Add external projects to load path
-(dolist (project (directory-files site-lisp-dir t "\\w+"))
-  (when (file-directory-p project)
-    (add-to-list 'load-path project)))
+  (setq load-path
+        (append
+                (delete-dups load-path)
+                '("~/.emacs.d/site-lisp")))
 
+  (require 'use-package)
 
-;; Set up load path
-(add-to-list 'load-path user-emacs-directory)
-(add-to-list 'load-path site-lisp-dir)
+  (if init-file-debug
+      (setq use-package-verbose t
+            use-package-expand-minimally nil
+            use-package-compute-statistics t
+            debug-on-error t)
+    (setq use-package-verbose nil
+          use-package-expand-minimally t)))
 
-(require 'sane-defaults)
+;;; Settings
+(eval-and-compile
+  (load (emacs-path "sane-defaults")))
 
-;; Setup extensions
-(require 'setup-ido)
-(require 'setup-ledger)
-(require 'setup-org)
-;;(eval-after-load 'ido '(require 'setup-ido))
+(eval-and-compile
+  (load (emacs-path "setup-org")))
 
+(use-package ivy
+  :diminish
+  :demand t
+  :custom
+    (ivy-use-virtual-buffers t)
+    (ivy-count-format "(%d/%d) ")
+  :bind (("C-x b" . ivy-switch-buffer)
+         ("C-x B" . ivy-switch-buffer-other-window)
+         ("M-H"   . ivy-resume))
+  :config
+    (ivy-mode 1))
 
-(require 'mode-mappings)
+(use-package ivy-rich
+  :after ivy
+  :demand t
+  :config
+    (ivy-rich-mode 1)
+    (setq ivy-virtual-abbreviate 'full
+        ivy-rich-path-style 'abbrev))
+
+(use-package swiper
+  :after ivy
+  :bind ("C-M-s" . swiper)
+  :bind (:map swiper-map
+              ("M-y" . yank)
+              ("M-%" . swiper-query-replace)
+              ("C-." . swiper-avy)
+              ("M-c" . swiper-mc))
+  :bind (:map isearch-mode-map
+              ("C-o" . swiper-from-isearch)))
+
+(use-package flycheck
+  :ensure t
+  :init (global-flycheck-mode))
+
+(use-package flycheck-ledger
+  :ensure t)
+
+(use-package ispell
+  :no-require t
+  :bind (("C-c i c" . ispell-comments-and-strings)
+         ("C-c i d" . ispell-change-dictionary)
+         ("C-c i k" . ispell-kill-ispell)
+         ("C-c i m" . ispell-message)
+         ("C-c i r" . ispell-region)))
+
+(use-package flyspell
+  :bind (("C-c i b" . flyspell-buffer)
+         ("C-c i f" . flyspell-mode)))
+
+(use-package ledger-mode
+  :mode "\\.ledger\\'"
+  :load-path "~/src/ledger-mode"
+  :commands ledger-mode
+  ;:init (setq ledger-binary-path "~/src/ledger/ledger")
+  :config
+  (add-hook 'ledger-mode-hook
+          (lambda ()
+            (setq-local tab-always-indent 'complete)
+            (setq-local completion-cycle-threshold t)
+            (setq-local ledger-complete-in-steps t))))
+
+(use-package magit
+  :bind (("C-x g" . magit-status)
+         ("C-x G" . magit-status-with-prefix)))
+
+;;theme
+(load-theme 'zenburn t)
+;;(load-theme 'nord t)
+
 (custom-set-variables
  ;; custom-set-variables was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
- '(ledger-reports (quote (("value" "ledger ") ("balance" "ledger ") ("bal" "ledger -f %(ledger-file) bal") ("reg" "ledger -f %(ledger-file) reg") ("payee" "ledger -f %(ledger-file) reg @%(payee)") ("account" "ledger -f %(ledger-file) reg %(account)")))))
+ '(package-selected-packages
+   '(magit doom-themes nord-theme ivy-rich helm-flyspell counsel snazzy-theme sunburn-theme zenburn-theme gruvbox-theme dracula-theme flycheck-ledger flycheck use-package org-chef helm elpy)))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
  )
-
-;;babel
-(org-babel-do-load-languages
- 'org-babel-load-languages
- '((sh . t) 
-  ))
-
-;;theme
-(add-to-list 'custom-theme-load-path "~/.emacs.d/themes/")
-(load-theme 'zenburn t)
-
-(package-initialize)
-(elpy-enable)
